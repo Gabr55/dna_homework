@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"strconv"
 	"strings"
@@ -43,13 +44,17 @@ func Compress(source string) (compressed string, err error) {
 	return builder.String(), nil
 }
 
+// Переписать через buffio
+
 func Decompress(compressed string) (source string, err error) {
 	// Объявляем String Builder
 	var sourceString strings.Builder
+	// Объявляем буфер с ссылкой на StringBuilder
+	b := bufio.NewWriter(&sourceString)
 	// Текущий символ
 	var currentChar rune
 	// Общий счетчик
-	var count int = 0
+	var count byte = 0
 
 	// Проход по символам в строке
 	for _, char := range compressed {
@@ -57,19 +62,35 @@ func Decompress(compressed string) (source string, err error) {
 			// Для каждой четной итерации записываем символ
 			if count%2 == 0 {
 				currentChar = char
-				sourceString.WriteString(string(char))
+				b.WriteString(string(char))
+				// Сбрасываем счетчик
+				count = 0
+				// Записываем в StringBuilder
+				err = b.Flush()
+				if err != nil {
+					return err.Error(), err
+				}
 			} else {
 				if !unicode.IsDigit(char) {
-					panic("Неподдерживаемая строка")
+					err := fmt.Errorf("unsupported string")
+					return err.Error(), err
 				}
 				count, err := strconv.Atoi(string(char))
 				if err != nil {
-					panic("Неподдерживаемая строка")
+					err := fmt.Errorf("unsupported string")
+					return err.Error(), err
 				}
 				// Заполняем оставшееся количество символов
 				for i := 0; i < count-1; i++ {
-					sourceString.WriteString(string(currentChar))
+					b.WriteString(string(currentChar))
 				}
+				// Записываем в StringBuilder
+				err = b.Flush()
+				if err != nil {
+					return err.Error(), err
+				}
+				// Сбрасываем буфер
+				b.Reset(&sourceString)
 			}
 			count++
 		}
